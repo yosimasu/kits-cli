@@ -1,4 +1,11 @@
-const { build } = require('gluegun')
+require('core-js/stable')
+require('regenerator-runtime/runtime')
+
+require('@babel/register')({
+  extensions: ['.js', '.ts']
+})
+
+const { build, filesystem } = require('gluegun')
 
 const BRAND = 'kits'
 
@@ -7,18 +14,25 @@ const BRAND = 'kits'
  */
 async function run(argv) {
   // create a CLI runtime
-  const cli = build()
+  let cli = build()
     .brand(BRAND)
     .src(__dirname)
-    .plugin(`.${BRAND}`, {
-      name: BRAND,
-      commandFilePattern: ['*.js'],
-      extensionFilePattern: ['*.js']
-    })
     .plugins('./node_modules', { matching: 'kits-*', hidden: true })
     .help() // provides default for help, h, --help, -h
     .version() // provides default for version, v, --version, -v
-    .create()
+
+  const kits = filesystem.find({
+    matching: [`.${BRAND}`, '!node_modules/**'],
+    directories: true,
+    files: false
+  })
+  cli = kits.reduce((cli, kit) => {
+    return cli.plugin(kit, {
+      name: BRAND
+    })
+  }, cli)
+
+  cli = cli.create()
   // enable the following method if you'd like to skip loading one of these core extensions
   // this can improve performance if they're not necessary for your project:
   // .exclude(['meta', 'strings', 'print', 'filesystem', 'semver', 'system', 'prompt', 'http', 'template', 'patching'])
